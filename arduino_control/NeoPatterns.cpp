@@ -13,6 +13,7 @@ class NeoPatterns : public Adafruit_NeoPixel {
 
     pattern  ActivePattern;  // which pattern is running
     direction Direction;     // direction to run the pattern
+    int PixelMask[];
     
     unsigned long Interval;   // milliseconds between updates
     unsigned long lastUpdate; // last update of position
@@ -26,6 +27,9 @@ class NeoPatterns : public Adafruit_NeoPixel {
     // Constructor - calls base-class constructor to initialize strip
     NeoPatterns(uint16_t pixels, uint8_t pin, uint8_t type, void (*callback)()) :Adafruit_NeoPixel(pixels, pin, type) {
         OnComplete = callback;
+        for(int i = 0; i < pixels; i++) {
+          PixelMask[i] = 1;
+        }
     }
     
     // Update the pattern
@@ -104,10 +108,10 @@ class NeoPatterns : public Adafruit_NeoPixel {
       for(int i=0; i < numPixels(); i++) {
         if(Index < halfSteps) {
           //rising
-          setPixelBrightness(i, map(Index, 0, halfSteps, 0, 255));
+          PixelBrightness(i, map(Index, 0, halfSteps, 0, 255));
         } else {
           //falling
-          setPixelBrightness(i, map(Index, halfSteps, TotalSteps, 255, 0));
+          PixelBrightness(i, map(Index, halfSteps, TotalSteps, 255, 0));
         }
       }
       show();
@@ -233,7 +237,7 @@ class NeoPatterns : public Adafruit_NeoPixel {
         return dimColor;
     }
 
-    setPixelBrightness( uint16_t n, uint16_t brightness) {
+    void PixelBrightness( uint16_t n, uint16_t brightness) {
       setPixelColor(n, (brightness*Red(Color1)/255) , (brightness*Green(Color1)/255), (brightness*Blue(Color1)/255));
     }
 
@@ -273,6 +277,35 @@ class NeoPatterns : public Adafruit_NeoPixel {
             WheelPos -= 170;
             return Color(WheelPos * 3, 255 - WheelPos * 3, 0);
         }
+    }  
+
+    void UnMask() {
+      for(int i = 0; i < numPixels() ; ++i) {                  
+          PixelMask[i] = 1;                          
+      }              
+    }
+
+    void Mask(char *maskString) {
+      //int mask[numPixels()];
+      for(int i = 0; maskString[i] != '\0' && i < numPixels() ; ++i) {      
+        if(maskString[i] == '0') {          
+          PixelMask[i] = 0;        
+          setPixelColor(i, 0);
+        }                       
+      }      
+      show();
+    }
+
+    void setPixelColor(uint16_t n, uint32_t color) {      
+        Adafruit_NeoPixel::setPixelColor(n, PixelMask[n] != 0 ? color : 0);        
+    }
+
+    void setPixelColor(uint16_t n, uint8_t r, uint8_t g, uint8_t b) {
+      if(PixelMask[n] != 0) {
+        Adafruit_NeoPixel::setPixelColor(n, r, g, b);        
+      } else {
+        Adafruit_NeoPixel::setPixelColor(n, 0, 0, 0);
+      }      
     }
 };
 

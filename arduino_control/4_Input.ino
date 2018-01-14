@@ -40,7 +40,7 @@ void publishButton(char* value) {
 }
 
 void publishSwitch(int value) {
-  info.hv_power = value;
+  nixieControl.hv_power = value;
   //turn off leds
   if(value == 0) {
     matrix.setBrightness(0);

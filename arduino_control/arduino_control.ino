@@ -1,10 +1,8 @@
-#include <Adafruit_NeoPixel.h>
 #include "NI2C.h"
 #include <Wire.h>
-#include <SM.h>
-#include <State.h>
 #include "OneButton.h"
-#include "NeoPatterns.cpp"
+//#include "NeoPatterns.cpp"
+#include "NixieControl.cpp"
 
 // PINS
 #define BUTTON_LED_PIN 2
@@ -16,8 +14,9 @@
 
 void ButtonLedComplete();
 void MatrixComplete();
+void NixieComplete();
 
-NI2C nixie(5);
+NixieControl nixieControl(&NixieComplete, 5);
 
 OneButton mainSwitch(SWITCH_PIN, false);
 OneButton button1(BUTTON_PIN, false);
@@ -28,14 +27,6 @@ NeoPatterns buttonLed(1, BUTTON_LED_PIN, NEO_RGB + NEO_KHZ400, &ButtonLedComplet
 //Serial
 char received_command_data_buffer[26];
 int number_of_bytes_received;
-//State info
-typedef struct StateInfo {
-  int hv_power;
-  int interval;  
-  char nixie_buffer[10];
-} StateInfo;
-
-StateInfo info = { 1, 100, "000000000\0"};
 
 unsigned long lastButtonUpdate;
 
@@ -48,10 +39,13 @@ void setup() {
   
   //Serial.setTimeout(100);
   
-  nixie.begin();
+  nixieControl.begin();
   matrix.begin();  
   buttonLed.begin();
-  
+
+  //nixieControl.SimpleCounter(100);
+  nixieControl.Whipe(400);
+    
   buttonLed.Color1 = buttonLed.Color(255,200,10); //"dirty" green
   buttonLed.ColorSet(buttonLed.Color1);
   
@@ -72,30 +66,24 @@ void setup() {
   mainSwitch.attachLongPressStop(switchLongPressStop1);
 }
 
-State MasterBoot();
-State NixieBoot();
-
-SM SMNixie(NixieBoot);
-SM SMMaster(MasterBoot);
-
 void loop() {         
-   EXEC(SMMaster); 
        
-   if(Serial.available() > 0) {     
+  if(Serial.available() > 0) {     
     number_of_bytes_received = Serial.readBytesUntil(10,received_command_data_buffer,25); //10 \n (NL), 13 \r (CR)
     received_command_data_buffer[number_of_bytes_received] = 0; // add a 0 terminator to the char array   
     handleCommand();
-    delay(1);
-    SMMaster.Set(MasterRun);
+    delay(1);    
   }
   
-   matrix.Update(); 
-   buttonLed.Update();  
+  nixieControl.Update();
+  matrix.Update(); 
+  buttonLed.Update();  
 
   if((millis() - lastButtonUpdate) > 100) {
     lastButtonUpdate = millis();
     button1.tick();
-    mainSwitch.tick();    
+    mainSwitch.tick();  
+    digitalWrite(HIGH_VOLTAGE_EN_PIN, nixieControl.hv_power);          
   }           
 }
 
@@ -108,15 +96,11 @@ void log(const char* format, ...) {
   Serial.println(outBuffer);  
 }
 
-bool resetAfterComplete = false;
-
 void MatrixComplete() {
-  if(resetAfterComplete) {
-    resetAfterComplete = false;
-    matrix.ActivePattern = NONE;
-  }
+  
 }
 
-
-
+void NixieComplete() {
+  
+}
 

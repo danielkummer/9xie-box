@@ -1,151 +1,166 @@
-uint32_t colorPattern[3][2] = { 
+/*uint32_t colorPattern[3][2] = { 
   {matrix.Color(102, 255, 255), matrix.Color(255,200,10)}, //light blue, dirty green
   {0,0}
-  };
-
+  };*/
 
 void handleCommand() {
   if(startsWith("help",received_command_data_buffer)) {
-    Serial.println(F("Help: <mandatory> (optional), [select,mandatory]"));
-    Serial.println(F("hv=[ON,OFF]              turn on/off high voltage power"));
-    Serial.println(F("matrix=[ON,POFF]          turn on/off pixels"));        
-    Serial.println(F("matrixDuration=<interval>      set run duration"));    
-    Serial.println(F("matrixInterval=<interval> set run interval"));    
-    Serial.println(F("matrixBrightness=<0-255>  set brightness"));
-    Serial.println(F("matrixRun=[NONE, RAINBOW_CYCLE, THEATER_CHASE, COLOR_WIPE, SCANNER, FADE, PULSE]          set run mode to"));        
-    Serial.println(F("matrixColor1=<r,b,g>      set primary pixel color"));
-    Serial.println(F("matrixColor2=<r,b,g>      set secondary pixel color"));
-    Serial.println(F("nixieInterval=(duration)  set nixie refresh interval"));    
-    Serial.println(F("nixieRun=[COUNTER, DISPLAY, SCROLL, FLASH]          set nixie run mode"));    
-    Serial.println(F("nixieWrite=<value>        set nixie value (max 9 chars)"));            
-    Serial.println(F("info                     get info"));
+    Serial.println(F("Help: <mandatory> (optional), [select,mandatory]"));        
+    Serial.println(F("nixie<command>= Tube control"));    
+    Serial.println(F("V=[ON,OFF]      turn on/off high voltage power"));
+    Serial.println(F("Interval=(dur)  set nixie refresh interval"));    
+    Serial.println(F("Run=[COUNTER, T_COUNTER, DISPLAY, SCROLL, PULSE, WHIPE]"));    
+    Serial.println(F("Write=<value>   set nixie value (max 9 chars)"));            
+    
+    Serial.println(F("pixel<command>= Pixel control"));        
+    Serial.println(F("V=[ON,OFF]          turn on/off pixels"));        
+    Serial.println(F("Duration=<interval> set run duration"));    
+    Serial.println(F("Interval=<interval> set run interval"));    
+    Serial.println(F("Brightness=<0-255>  set brightness"));
+    Serial.println(F("Run=[NONE, RAINBOW_CYCLE, THEATER_CHASE, COLOR_WIPE, SCANNER, FADE, PULSE]          set run mode to"));        
+    Serial.println(F("Color1=<r,b,g>      set primary pixel color"));
+    Serial.println(F("Color2=<r,b,g>      set secondary pixel color"));
+    Serial.println(F("Mask=[0-1+,NONE]    set pixel-mask"));
+            
+    Serial.println(F("info   get info"));
     return;
   } else  
-  if(startsWith("info",received_command_data_buffer)) {
-    log("buffer=%s", info.nixie_buffer);    
-    log("hvPower=%d", info.hv_power);
-    log("interval=%d", info.interval);       
-    log("matrixRun=%s", PATTERN_STRING[matrix.ActivePattern]);
-    log("matrixInterval=%d", matrix.Interval);
-    log("matrixTotalSteps=%d", matrix.TotalSteps);
-    log("matrixIndex=%d", matrix.Index);
-    log("matrixColor1=%d,%d,%d", matrix.Red(matrix.Color1), matrix.Green(matrix.Color1), matrix.Blue(matrix.Color1) );
-    log("matrixColor2=%d,%d,%d", matrix.Red(matrix.Color1), matrix.Green(matrix.Color1), matrix.Blue(matrix.Color1) );
-    log("matrixDirection=%d", matrix.Direction);
-    log("matrixBrightness=%d", matrix.getBrightness());
+  if(startsWith("info",received_command_data_buffer)) {    
+    log("buffer=%s", nixieControl.nixie_buffer);    
+    log("hv=%d", nixieControl.hv_power);
+    log("interval=%d", nixieControl.Interval);    
+    log("mode=%s", MODE_STRING[nixieControl.Mode]);       
+    log("pixelRun=%s", PATTERN_STRING[matrix.ActivePattern]);
+    log("pixelInterval=%d", matrix.Interval);
+    log("pixelTotalSteps=%d", matrix.TotalSteps);
+    log("pixelIndex=%d", matrix.Index);
+    log("pixelColor1=%d,%d,%d", matrix.Red(matrix.Color1), matrix.Green(matrix.Color1), matrix.Blue(matrix.Color1) );
+    log("pixelColor2=%d,%d,%d", matrix.Red(matrix.Color1), matrix.Green(matrix.Color1), matrix.Blue(matrix.Color1) );
+    log("pixelDirection=%d", matrix.Direction);
+    log("pixelBrightness=%d", matrix.getBrightness());
     log("buttonColor1=%d,%d,%d", buttonLed.Red(buttonLed.Color1), buttonLed.Green(buttonLed.Color1), buttonLed.Blue(buttonLed.Color1) );    
   } else  
-  if(startsWith("hvPower=ON",received_command_data_buffer)) {
-    info.hv_power = 1;  
-  } else 
-  if(startsWith("hvPower=OFF",received_command_data_buffer)) {
-    info.hv_power = 0;
-  } else 
-  if(startsWith("matrix=ON",received_command_data_buffer)) {    
-    matrix.ColorSet(matrix.Color1);
-    matrix.setBrightness(255);
-  } else 
-  if(startsWith("maxtrix=OFF",received_command_data_buffer)) {    
-    matrix.ColorSet(0);    
-    matrix.setBrightness(0);
-  } else 
-  if(startsWith("matrixDuration=",received_command_data_buffer)) {    
-    int duration = atoi(&received_command_data_buffer[15]);
-    if(duration > 0) {      
-      matrix.TotalSteps = duration;
-    }    
-  } else 
-  if(startsWith("matrixInterval=",received_command_data_buffer)) {    
-    int interval = atoi(&received_command_data_buffer[15]);
-    if(interval > 0) {      
-      matrix.Interval = interval;
-    }    
-  } else 
-  if(startsWith("matrixRun=",received_command_data_buffer)) {    
-    char* patternString = &received_command_data_buffer[10];
-    
-    if(startsWith("NONE",patternString)) {
-      matrix.ActivePattern = NONE;
-    } else
-    if(startsWith("RAINBOW",patternString)) {
-      matrix.RainbowCycle(255);            
-    } else
-    if(startsWith("THEATER",patternString)) {
-      matrix.ActivePattern = THEATER_CHASE;
-      matrix.Interval = 100;      
-    } else
-    if(startsWith("COLOR",patternString)) {
-      matrix.ActivePattern = COLOR_WIPE; 
-    } else
-    if(startsWith("SCANNER",patternString)) {
-      matrix.ActivePattern = SCANNER;
-    } else
-    if(startsWith("FADE",patternString)) {
-      matrix.ActivePattern = FADE;
-    } else   
-    if(startsWith("PULSE",patternString)) {
-      matrix.ActivePattern = PULSE;           
-    } else {
-      Serial.println(F("error=unknown pattern"));       
-    }
-  } else 
-  if(startsWith("matrixBrightness=",received_command_data_buffer)) {        
-    matrix.setBrightness(atoi(&received_command_data_buffer[17]));
-    matrix.show();
-  } else  
-  
-  if(startsWith("matrixColor1=",received_command_data_buffer)) {        
-    uint32_t color = getIntColor(&received_command_data_buffer[13]);    
-    matrix.ColorSet(color);
-    matrix.Color1 = color;   
-  } else 
-  if(startsWith("matrixColor2=",received_command_data_buffer)) {        
-    uint32_t color = getIntColor(&received_command_data_buffer[13]);        
-    matrix.Color2 = color;   
-  } else 
-  if(startsWith("buttonColor1=",received_command_data_buffer)) {        
-    uint32_t color = getIntColor(&received_command_data_buffer[13]);    
-    buttonLed.ColorSet(color);
-    buttonLed.Color1 = color;   
-  } else 
-  //--------------- NIXIE CONTROL
-  if(startsWith("nixieInterval=",received_command_data_buffer)) {    
-    int interval = atoi(&received_command_data_buffer[14]);
-    if(interval > 0) {
-      info.interval = interval;
-    }    
-  } else   
-  if(startsWith("nixieWrite=",received_command_data_buffer)) {    
-    char* bufferData = &received_command_data_buffer[11];
-    strncpy(info.nixie_buffer, bufferData, 9);    
-  } else
-  if(startsWith("nixieRun=",received_command_data_buffer)) {    
-    char* mode = &received_command_data_buffer[9];
-    
-    if(startsWith("COUNTER",mode)) {
-      info.interval = 100;
-      SMNixie.Set(SimpleCounter);      
-    } else
-    if(startsWith("DISPLAY",mode)) {
-      info.interval = 50;
-      SMNixie.Set(Display);
-    } else
-    if(startsWith("SCROLL",mode)) {
-      info.interval = 100;
-      SMNixie.Set(NixieScroll);  
+  if(startsWith("pixel",received_command_data_buffer)) {
+    char* matrixCommand = &received_command_data_buffer[6];     
+    if(startsWith("V",matrixCommand)) {    
+      matrix.ColorSet(isOn(&matrixCommand[1]) ? matrix.Color1 : 0);
+      matrix.setBrightness(isOn(&matrixCommand[1]) ? 255 : 0);           
+    } else     
+    if(startsWith("Duration=",matrixCommand)) {    
+      int duration = atoi(&matrixCommand[9]);
+      if(duration > 0) {      
+        matrix.TotalSteps = duration;
+      }    
     } else 
-    if(startsWith("FLASH",mode)) {            
-      SMNixie.Set(FlashOnUpdateMode);                   
-      matrix.ActivePattern = NONE;
+    if(startsWith("Interval=",matrixCommand)) {    
+      int interval = atoi(&matrixCommand[9]);
+      if(interval > 0) {      
+        matrix.Interval = interval;
+      }    
+    } else 
+    if(startsWith("Run=",matrixCommand)) {    
+      char* patternString = &matrixCommand[4];
+      
+      if(startsWith("NO",patternString)) { //NONE
+        matrix.ActivePattern = NONE;
+      } else
+      if(startsWith("RA",patternString)) { //RAINBOW
+        matrix.RainbowCycle(255);            
+      } else
+      if(startsWith("TH",patternString)) { //THEATER
+        matrix.ActivePattern = THEATER_CHASE;
+        matrix.Interval = 100;      
+      } else
+      if(startsWith("CO",patternString)) { //COLOR
+        matrix.ActivePattern = COLOR_WIPE; 
+      } else
+      if(startsWith("SC",patternString)) { //SCANNER
+        matrix.ActivePattern = SCANNER;
+      } else
+      if(startsWith("FA",patternString)) { //FADE
+        matrix.ActivePattern = FADE;
+      } else   
+      if(startsWith("PULSE",patternString)) {
+        matrix.ActivePattern = PULSE;           
+      } else {
+        Serial.println(F("error=unknown pattern"));       
+      }
+    } else 
+    if(startsWith("Brightness=",matrixCommand)) {        
+      matrix.setBrightness(atoi(&matrixCommand[11]));
+      matrix.show();
+    } else  
+    if(startsWith("Mask=",matrixCommand)) {                  
+      char* maskString = &matrixCommand[5];
+      if(startsWith("NONE",maskString)) {
+        matrix.UnMask();
+      } else {
+        matrix.Mask(maskString); 
+      }
+    } else 
+    if(startsWith("Color1=",matrixCommand)) {        
+      uint32_t color = getIntColor(&matrixCommand[7]);    
+      matrix.ColorSet(color);
+      matrix.Color1 = color;   
+    } else 
+    if(startsWith("Color2=",matrixCommand)) {        
+      uint32_t color = getIntColor(&matrixCommand[7]);        
+      matrix.Color2 = color;   
+    }      
+  } else 
+  // end matrix*
+  if(startsWith("nixie",received_command_data_buffer)) {      
+    char* nixieCommand = &received_command_data_buffer[6]; 
+    if(startsWith("V",nixieCommand)) {
+      nixieControl.hv_power = isOn(&nixieCommand[1]) ? 1 : 0;  
+    } else      
+    if(startsWith("Interval=",nixieCommand)) {    
+      int interval = atoi(&nixieCommand[9]);
+      if(interval > 0) {
+        nixieControl.Interval = interval;      
+      }    
+    } else   
+    if(startsWith("Write=",nixieCommand)) {    
+      char* bufferData = &nixieCommand[6];
+      strncpy(nixieControl.nixie_buffer, bufferData, 9);    
+    } else
+    if(startsWith("Run=",nixieCommand)) {    
+      char* mode = &nixieCommand[4];
+      
+      if(startsWith("CO",mode)) {    //COUNTER    
+        nixieControl.SimpleCounter(100);    
+      } else
+      if(startsWith("T_CO",mode)) { //T_COUNTER
+        nixieControl.TrippleCounter(100);    
+      } else
+      if(startsWith("DI",mode)) { //DISPLAY
+        nixieControl.Display(50);          
+      } else
+      if(startsWith("SC",mode)) { //SCROLL
+        nixieControl.Scroll(100);    
+      } else 
+      if(startsWith("PU",mode)) { //PULSE
+        nixieControl.PulseOnUpdate(100);                
+        //SMNixie.Set(FlashOnUpdateMode);                   
+        //matrix.ActivePattern = NONE;
+      } else   
+      if(startsWith("WH",mode)) { //WHIPE
+        nixieControl.Whipe();                      
+      } else {
+        Serial.println(F("error=unknown mode"));       
+      }  
+    } else
+    // end nixie*    
+    if(startsWith("buttonColor1=",received_command_data_buffer)) {        
+      uint32_t color = getIntColor(&received_command_data_buffer[13]);    
+      buttonLed.ColorSet(color);
+      buttonLed.Color1 = color;       
     } else {
-      Serial.println(F("error=unknown mode"));       
+      Serial.println(F("error=unknown command"));
+      return;
     }
-    
-  } else {
-    Serial.println(F("error=unknown command"));
-    return;
+    Serial.println(F("success"));    
   }
-  Serial.println(F("success"));    
 }
 
 uint32_t getIntColor(const char* intcolors) {
@@ -160,3 +175,12 @@ uint32_t getIntColor(const char* intcolors) {
 bool startsWith(const char *pre, const char *str) {
   return strncmp(pre, str, strlen(pre)) == 0;
 }
+
+bool isOn(char* str) {
+  return startsWith("=ON", str);
+}
+
+bool isOff(char* str) {
+  return startsWith("=OFF", str);
+}
+
