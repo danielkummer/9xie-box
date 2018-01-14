@@ -16,15 +16,16 @@ void handleCommand() {
     Serial.println(F("matrixColor1=<r,b,g>      set primary pixel color"));
     Serial.println(F("matrixColor2=<r,b,g>      set secondary pixel color"));
     Serial.println(F("nixieInterval=(duration)  set nixie refresh interval"));    
-    Serial.println(F("nixieRun=[COUNTER, DISPLAY, SCROLL, FLASH]          set nixie run mode"));    
+    Serial.println(F("nixieRun=[COUNTER, T_COUNTER, DISPLAY, SCROLL, PULSE, WHIPE]          set nixie run mode"));    
     Serial.println(F("nixieWrite=<value>        set nixie value (max 9 chars)"));            
     Serial.println(F("info                     get info"));
     return;
   } else  
   if(startsWith("info",received_command_data_buffer)) {
-    log("buffer=%s", info.nixie_buffer);    
-    log("hvPower=%d", info.hv_power);
-    log("interval=%d", info.interval);       
+    log("nixieBuffer=%s", nixieControl.nixie_buffer);    
+    log("nixieHvPower=%d", nixieControl.hv_power);
+    log("nixieInterval=%d", nixieControl.Interval);    
+    log("nixieMode=%s", MODE_STRING[nixieControl.Mode]);       
     log("matrixRun=%s", PATTERN_STRING[matrix.ActivePattern]);
     log("matrixInterval=%d", matrix.Interval);
     log("matrixTotalSteps=%d", matrix.TotalSteps);
@@ -36,10 +37,10 @@ void handleCommand() {
     log("buttonColor1=%d,%d,%d", buttonLed.Red(buttonLed.Color1), buttonLed.Green(buttonLed.Color1), buttonLed.Blue(buttonLed.Color1) );    
   } else  
   if(startsWith("hvPower=ON",received_command_data_buffer)) {
-    info.hv_power = 1;  
+    nixieControl.hv_power = 1;  
   } else 
   if(startsWith("hvPower=OFF",received_command_data_buffer)) {
-    info.hv_power = 0;
+    nixieControl.hv_power = 0;
   } else 
   if(startsWith("matrix=ON",received_command_data_buffer)) {    
     matrix.ColorSet(matrix.Color1);
@@ -112,31 +113,35 @@ void handleCommand() {
   if(startsWith("nixieInterval=",received_command_data_buffer)) {    
     int interval = atoi(&received_command_data_buffer[14]);
     if(interval > 0) {
-      info.interval = interval;
+      nixieControl.Interval = interval;      
     }    
   } else   
   if(startsWith("nixieWrite=",received_command_data_buffer)) {    
     char* bufferData = &received_command_data_buffer[11];
-    strncpy(info.nixie_buffer, bufferData, 9);    
+    strncpy(nixieControl.nixie_buffer, bufferData, 9);    
   } else
   if(startsWith("nixieRun=",received_command_data_buffer)) {    
     char* mode = &received_command_data_buffer[9];
     
-    if(startsWith("COUNTER",mode)) {
-      info.interval = 100;
-      SMNixie.Set(SimpleCounter);      
+    if(startsWith("COUNTER",mode)) {      
+      nixieControl.SimpleCounter(100);    
+    } else
+    if(startsWith("T_COUNTER",mode)) {      
+      nixieControl.TrippleCounter(100);    
     } else
     if(startsWith("DISPLAY",mode)) {
-      info.interval = 50;
-      SMNixie.Set(Display);
+      nixieControl.Display(50);          
     } else
     if(startsWith("SCROLL",mode)) {
-      info.interval = 100;
-      SMNixie.Set(NixieScroll);  
+      nixieControl.Scroll(100);    
     } else 
-    if(startsWith("FLASH",mode)) {            
-      SMNixie.Set(FlashOnUpdateMode);                   
-      matrix.ActivePattern = NONE;
+    if(startsWith("PULSE",mode)) {
+      nixieControl.PulseOnUpdate(100);                
+      //SMNixie.Set(FlashOnUpdateMode);                   
+      //matrix.ActivePattern = NONE;
+    } else   
+    if(startsWith("WHIPE",mode)) {
+      nixieControl.Whipe();                      
     } else {
       Serial.println(F("error=unknown mode"));       
     }
