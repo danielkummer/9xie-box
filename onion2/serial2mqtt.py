@@ -22,7 +22,7 @@ action = lambda f: actions.setdefault(MAIN_TOPIC + "/" + f.__name__[3:], f)
 @action
 def do_write(msg):
     logging.info("Got serial payload " + str(msg.payload))
-        ser.write(str(msg.payload) + '\n')
+    ser.write(str(msg.payload) + '\n')
 
 @action
 def do_background(payload):
