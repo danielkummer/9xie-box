@@ -2,6 +2,7 @@ import logging
 import re
 import paho.mqtt.client as mqtt
 import serial
+import time
 
 ser = serial.Serial(
     port='/dev/ttyS1',
@@ -19,15 +20,91 @@ MAIN_TOPIC = 'nixie'
 actions = {}
 action = lambda f: actions.setdefault(MAIN_TOPIC + "/" + f.__name__[3:], f)
 
+mqttc = mqtt.Client()
+
+responseCache = []
+
+
 @action
-def do_write(msg):
+def do_direct_serial(msg):
     logging.info("Got serial payload " + str(msg.payload))
     ser.write(str(msg.payload) + '\n')
 
+
 @action
-def do_background(payload):
-    # TODO write to i2c and set value
-    logging.info("Got background payload" + str(payload))
+def do_nixie(msg):
+    logging.info("Got nixie payload" + str(msg.payload))
+    ser.write('nixie' + str(msg.payload) + '\n')
+
+
+@action
+def do_pixel(msg):
+    logging.info("Got pixel payload" + str(msg.payload))
+    ser.write('pixel' + str(msg.payload) + '\n')
+
+
+@action
+def do_button(msg):
+    logging.info("Got button payload" + str(msg.payload))
+    ser.write('button' + str(msg.payload) + '\n')
+
+
+@action
+def do_out(msg):
+    responseCache.append(msg.payload)
+
+
+@action
+def do_test(msg):
+    commands = {
+        'nixie': [
+            "V=ON",
+            "V=OFF",
+            "Interval=100",
+            "Run=COUNTER",
+            "Run=T_COUNTER",
+            "Run=DISPLAY",
+            "Run=SCROLL",
+            "Run=PULSE",
+            "Run=WHIPE",
+            "Write=123456",
+            "Write=123456"
+        ],
+        'pixel': [
+            "V=ON",
+            "V=OFF",
+            "Interval=100",
+            "Duration=100",
+            "Brightness=100",
+            "Brightness=100",
+            "Run=NONE",
+            "Run=RAINBOW_CYCLE",
+            "Run=THEATER_CHASE",
+            "Run=COLOR_WIPE",
+            "Run=SCANNER",
+            "Run=FADE",
+            "Run=PULSE",
+            "Color1=255,125,64",
+            "Color2=255,125,64",
+            "Mask=NONE",
+            "Mask=001001001"
+        ]
+    }
+
+    last_response = 'NONE'
+    command = 'NONE'
+
+    try:
+        for channel, channel_commands in commands:
+            for command in channel_commands:
+                mqttc.publish(channel, command)
+                logging.info("Sending command %s to %s" % (command, channel))
+                time.sleep(1)
+                last_response = responseCache.pop(0)  # handle indexerror
+                assert last_response == 'success'
+
+    except (AssertionError, IndexError) as err:
+        logging.exception("Test failed on command %s with response %s" % (command, last_response))
 
 
 def setup_logging():
@@ -49,8 +126,6 @@ def setup_logging():
 
 def __main__():
     setup_logging()
-
-    mqttc = mqtt.Client()
 
     def on_connect(client, userdata, flags, rc):
         logging.info("Connected with result code " + str(rc))
