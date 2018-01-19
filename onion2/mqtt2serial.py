@@ -2,7 +2,6 @@ import logging
 import re
 import paho.mqtt.client as mqtt
 import serial
-import time
 
 ser = serial.Serial(
     port='/dev/ttyS1',
@@ -13,7 +12,7 @@ ser = serial.Serial(
     timeout=1
 )
 
-MAIN_TOPIC = 'nixie'
+MAIN_TOPIC = 'serial'
 
 # will create a dictionary consisting of methods annotated with @action to call when a specific
 # topic event is received, example 9xie/button will call do_button
@@ -22,14 +21,15 @@ action = lambda f: actions.setdefault(MAIN_TOPIC + "/" + f.__name__[3:], f)
 
 mqttc = mqtt.Client()
 
-responseCache = []
-
 
 @action
-def do_direct_serial(msg):
+def do_direct(msg):
     logging.info("Got serial payload " + str(msg.payload))
     ser.write(str(msg.payload) + '\n')
 
+@action
+def do_info(msg):
+    ser.write('info\n')
 
 @action
 def do_nixie(msg):
@@ -42,6 +42,10 @@ def do_pixel(msg):
     logging.info("Got pixel payload" + str(msg.payload))
     ser.write('pixel' + str(msg.payload) + '\n')
 
+@action
+def do_bell(msg):
+    logging.info("Got bell payload" + str(msg.payload))
+    ser.write('bell' + str(msg.payload) + '\n')
 
 @action
 def do_button(msg):
@@ -51,7 +55,7 @@ def do_button(msg):
 
 @action
 def do_out(msg):
-    responseCache.append(msg.payload)
+    logging.info("Got response %s" % str(msg.payload))
 
 
 @action
@@ -67,7 +71,6 @@ def do_test(msg):
             "Run=SCROLL",
             "Run=PULSE",
             "Run=WHIPE",
-            "Write=123456",
             "Write=123456"
         ],
         'pixel': [
@@ -88,23 +91,21 @@ def do_test(msg):
             "Color2=255,125,64",
             "Mask=NONE",
             "Mask=001001001"
+        ],
+        'bell': [
+            "Ring=5,100"
         ]
     }
 
-    last_response = 'NONE'
-    command = 'NONE'
-
-    try:
-        for channel, channel_commands in commands:
-            for command in channel_commands:
-                mqttc.publish(channel, command)
-                logging.info("Sending command %s to %s" % (command, channel))
+    for channel, channel_commands in commands.iteritems():
+        for command in channel_commands:
+            mqttc.publish(MAIN_TOPIC + '/' + channel, command)
+            logging.info("Sending command %s%s" % (command, channel))
+            try:
+                time.sleep(float(msg.payload));
+            except ValueError:
                 time.sleep(1)
-                last_response = responseCache.pop(0)  # handle indexerror
-                assert last_response == 'success'
 
-    except (AssertionError, IndexError) as err:
-        logging.exception("Test failed on command %s with response %s" % (command, last_response))
 
 
 def setup_logging():
@@ -123,7 +124,6 @@ def setup_logging():
     # add the handler to the root logger
     logging.getLogger('').addHandler(console)
 
-
 def __main__():
     setup_logging()
 
@@ -140,6 +140,7 @@ def __main__():
         for regex, act in actions.items():
             m = re.match(regex, msg.topic)
             if m:
+                # call @action method do_<action>
                 act(msg)
                 break
 
@@ -154,7 +155,6 @@ def __main__():
 
     mqttc.connect('127.0.0.1')
     mqttc.loop_forever()
-
 
 if __name__ == '__main__':
     __main__()
