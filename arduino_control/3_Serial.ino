@@ -2,6 +2,7 @@
   {matrix.Color(102, 255, 255), matrix.Color(255,200,10)}, //light blue, dirty green
   {0,0}
   };*/
+const char delimiter[] = ",";
 
 void handleCommand() {
   if(startsWith("help",received_command_data_buffer)) {
@@ -21,6 +22,8 @@ void handleCommand() {
     Serial.println(F("Color1=<r,b,g>      set primary pixel color"));
     Serial.println(F("Color2=<r,b,g>      set secondary pixel color"));
     Serial.println(F("Mask=[0-1+,NONE]    set pixel-mask"));
+
+    Serial.println(F("Bell=<times,interval> ring bell"));
             
     Serial.println(F("info   get info"));
     return;
@@ -45,9 +48,15 @@ void handleCommand() {
     char* nixieCommand = &received_command_data_buffer[5]; 
     handleNixieCommand(nixieCommand);
   } else if(startsWith("buttonColor1=",received_command_data_buffer)) {        
-      uint32_t color = getIntColor(&received_command_data_buffer[13]);    
-      buttonLed.ColorSet(color);
-      buttonLed.Color1 = color;       
+    uint32_t color = getIntColor(&received_command_data_buffer[13]);    
+    buttonLed.ColorSet(color);
+    buttonLed.Color1 = color;       
+  } else if(startsWith("bellRing=",received_command_data_buffer)) { 
+    char *ptr; 
+    ptr = strtok(&received_command_data_buffer[9], delimiter); 
+    uint8_t times = atoi(ptr);
+    uint16_t interval = atoi(strtok(NULL, delimiter));    
+    bellControl.Ring(times, interval);
   } else {
     Serial.println(F("error=unknown command"));
     return;
@@ -55,10 +64,8 @@ void handleCommand() {
   Serial.println(F("success"));      
 }
 
-uint32_t getIntColor(const char* intcolors) {
-  char delimiter[] = ",";
+uint32_t getIntColor(const char* intcolors) {  
   char *ptr;
-
   // initialisieren und ersten Abschnitt erstellen
   ptr = strtok(intcolors, delimiter); 
   return matrix.Color(atoi(ptr), atoi(strtok(NULL, delimiter)), atoi(strtok(NULL, delimiter)));

@@ -3,6 +3,7 @@
 #include "OneButton.h"
 //#include "NeoPatterns.cpp"
 #include "NixieControl.cpp"
+#include "BellControl.cpp"
 
 // PINS
 #define BUTTON_LED_PIN 2
@@ -11,18 +12,20 @@
 #define HIGH_VOLTAGE_EN_PIN 5
 #define MATRIX_PIN 6
 #define MATRIX_COUNT 9
+#define BELL_PIN 7
 
-void ButtonLedComplete();
-void MatrixComplete();
-void NixieComplete();
+//void ButtonLedComplete();
+//void MatrixComplete();
+//void NixieComplete();
 
-NixieControl nixieControl(&NixieComplete, 5);
+NixieControl nixieControl(NULL, 5);
+BellControl bellControl(BELL_PIN, NULL);
 
 OneButton mainSwitch(SWITCH_PIN, false);
 OneButton button1(BUTTON_PIN, false);
 
-NeoPatterns matrix(MATRIX_COUNT, MATRIX_PIN, NEO_GRB + NEO_KHZ800, &MatrixComplete);
-NeoPatterns buttonLed(1, BUTTON_LED_PIN, NEO_RGB + NEO_KHZ400, &ButtonLedComplete);
+NeoPatterns matrix(MATRIX_COUNT, MATRIX_PIN, NEO_GRB + NEO_KHZ800, NULL);
+NeoPatterns buttonLed(1, BUTTON_LED_PIN, NEO_RGB + NEO_KHZ400, NULL);
 
 //Serial
 char received_command_data_buffer[26];
@@ -77,6 +80,7 @@ void loop() {
   
   nixieControl.Update();
   matrix.Update(); 
+  bellControl.Update();
   buttonLed.Update();  
 
   if((millis() - lastButtonUpdate) > 100) {
@@ -95,12 +99,3 @@ void log(const char* format, ...) {
   va_end(args);  
   Serial.println(outBuffer);  
 }
-
-void MatrixComplete() {
-  
-}
-
-void NixieComplete() {
-  
-}
-
